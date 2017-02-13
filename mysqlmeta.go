@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-        "log"
+	"log"
 	"reflect"
 	"regexp"
 	"strings"
@@ -105,7 +105,7 @@ func SetValueId(value reflect.Value, id uint) {
 }
 
 func GetColumns(db *sql.DB, tableName string) ([]ColumnMetadata, error) {
-	rows, err := db.Query("SHOW COLUMNS FROM `"+tableName+"`")
+	rows, err := db.Query("SHOW COLUMNS FROM `" + tableName + "`")
 	if nil != err {
 		log.Printf("sql query failed: %v", err)
 		return nil, err
@@ -127,7 +127,11 @@ func GetColumns(db *sql.DB, tableName string) ([]ColumnMetadata, error) {
 }
 
 func GetIndexes(db *sql.DB, tableName string, cols []ColumnMetadata) ([]ColumnMetadata, error) {
-	rows, err := db.Query("SHOW INDEXES FROM ?", tableName)
+	err := CheckTableName(tableName)
+	if nil != err {
+		return nil, err
+	}
+	rows, err := db.Query("SHOW INDEXES FROM `" + tableName + "`")
 	if nil != err {
 		log.Printf("sql query failed\n%v", err)
 		return nil, err
@@ -408,6 +412,12 @@ func (metadata *TableMetadata) FetchTableMetadata(db *sql.DB, tableName string, 
 	return err
 }
 
+func GetTableMetadata(db *sql.DB, tableName string, entity interface{}) (*TableMetadata, error) {
+	metadata := TableMetadata{}
+	err := metadata.FetchTableMetadata(db, tableName, entity)
+	return &metadata, err
+}
+
 func (metadata TableMetadata) IsColumn(colname string) bool {
 	_, ok := metadata.FieldByColumn[colname]
 	return ok
@@ -426,7 +436,7 @@ func (metadata TableMetadata) ScanEntity(entity interface{}, rows *sql.Rows) err
 	for i, col := range metadata.Columns {
 		j := metadata.FieldByColumn[col.Field]
 		if j < 0 {
-			msg := "no matching field for column "+col.Field
+			msg := "no matching field for column " + col.Field
 			return errors.New(msg)
 		}
 		// If the field is string to be read into a struct, then
@@ -553,7 +563,7 @@ func (metadata TableMetadata) updateEntityValue(entity interface{}, value reflec
 		values[i] = columnValue
 	}
 	values[len(metadata.UpdateColumns)] = id
-	q := metadata.UpdateString+" WHERE id = ?"
+	q := metadata.UpdateString + " WHERE id = ?"
 	result, err := metadata.DB.Exec(q, values...)
 	if nil != err {
 		return err
